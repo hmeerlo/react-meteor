@@ -72,46 +72,10 @@ function enqueueMeteorStateUpdate(component) {
   });
 }
 
-// Like React.render, but it replaces targetNode, and works even if
-// targetNode.parentNode has children other than targetNode.
-function renderInPlaceOfNode(reactElement, targetNode) {
-  var container = targetNode.parentNode;
-  var prevSibs = [];
-  var nextSibs = [];
-  var sibs = prevSibs;
-  var child = container.firstChild;
-
-  while (child) {
-    if (child === targetNode) {
-      sibs = nextSibs;
-    } else {
-      sibs.push(child);
-    }
-    var next = child.nextSibling;
-    container.removeChild(child);
-    child = next;
-  }
-
-  var result = React.render(reactElement, container);
-  var rendered = container.firstChild;
-
-  if (prevSibs.length > 0) {
-    prevSibs.forEach(function(sib) {
-      container.insertBefore(sib, rendered);
-    });
-  }
-
-  if (nextSibs.length > 0) {
-    nextSibs.forEach(function(sib) {
-      container.appendChild(sib);
-    });
-  }
-
-  return result;
-}
-
 ReactMeteor = {
   Mixin: ReactMeteorMixin,
+
+  container: undefined,
 
   // So you don't have to mix in ReactMeteor.Mixin explicitly.
   createClass: function createClass(spec) {
@@ -132,11 +96,16 @@ ReactMeteor = {
       );
 
       template.onRendered(function() {
-        renderInPlaceOfNode(
+        this.container = this.find("span").parentNode;
+        React.render(
           // Equivalent to <Cls {...this.data} />:
           React.createElement(Cls, this.data || {}),
-          this.find("span")
+            this.container
         );
+      });
+
+      template.onDestroyed(function() {
+        React.unmountComponentAtNode(this.container);
       });
 
       Template[spec.templateName] = template;
